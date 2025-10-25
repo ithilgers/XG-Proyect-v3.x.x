@@ -183,6 +183,41 @@ composer phpunit       # Nur Tests
 
 ## Nächste Schritte (Phase 1)
 
+**🎉 NEUE FEATURES: PostgreSQL Support hinzugefügt!**
+
+### Warum PostgreSQL statt MySQL?
+
+✅ **JSONB** für flexible Battle Reports
+✅ **Window Functions** für Leaderboards/Rankings
+✅ **Full-Text Search** für Galaxy/User-Suche
+✅ **Bessere Concurrency** für Fleet-Operationen
+✅ **Materialized Views** für Statistiken
+✅ **Native Arrays** und fortgeschrittene Datentypen
+
+**Siehe:** `docs/POSTGRESQL_MIGRATION.md` für Details
+
+### PostgreSQL Setup (neu!)
+
+```bash
+# PostgreSQL + PgAdmin starten
+docker-compose -f docker-compose.dev.yml up -d
+
+# PgAdmin öffnen
+open http://localhost:5050
+# Login: admin@xgproyect.local / admin
+
+# Mit Legacy MySQL (optional)
+docker-compose -f docker-compose.dev.yml --profile legacy up
+```
+
+**Ports:**
+- 5432: PostgreSQL
+- 5050: PgAdmin
+- 33060: MySQL (nur mit --profile legacy)
+- 8081: PHPMyAdmin (nur mit --profile legacy)
+
+---
+
 ### Phase 1.1: Laravel 11 Setup
 ```bash
 # Laravel Installer
@@ -194,28 +229,38 @@ composer require laravel/framework:"^11.0"
 
 **Aufgaben:**
 1. Laravel 11 Projekt parallel initialisieren
-2. Konfiguration migrieren
+2. PostgreSQL als primäre Datenbank konfigurieren
 3. Routing-System aufsetzen
 4. Service Provider erstellen
 5. Middleware implementieren
 
-### Phase 1.2: Database Migrations
-Alle 21 Tabellen als Laravel Migrations:
+**Siehe:** `docs/PHASE_1_PLAN.md` Abschnitt 1.1
+
+### Phase 1.2: Database Migrations (PostgreSQL)
+Alle 21 Tabellen als Laravel Migrations mit PostgreSQL-Features:
 
 ```bash
-php artisan make:migration create_users_table
-php artisan make:migration create_planets_table
-php artisan make:migration create_buildings_table
-# ... etc
+php artisan migrate --database=pgsql
+
+# Datenmigration von MySQL
+php artisan migrate:from-mysql --chunk=5000
 ```
+
+**PostgreSQL-spezifische Features:**
+- JSONB Columns für flexible Daten
+- Full-Text Search Vectors
+- GIN Indexes für JSONB
+- Window Functions für Rankings
 
 **Tabellen:**
 - users, users_statistics, preferences, sessions
-- planets, buildings, ships, defenses
-- fleets, research, reports
+- planets (mit JSONB fields), buildings, ships, defenses
+- fleets, research, reports (als JSONB)
 - alliance, alliance_statistics
 - buddys, messages, notes, acs
 - banned, changelog, languages, options, premium
+
+**Siehe:** `docs/PHASE_1_PLAN.md` Abschnitt 1.2
 
 ### Phase 1.3: Eloquent Models
 Eloquent Models für alle Entities:
@@ -225,6 +270,11 @@ Eloquent Models für alle Entities:
 class User extends Model {
     protected $fillable = [...];
 
+    protected $casts = [
+        'user_registration' => 'datetime',
+        'user_metal' => 'decimal:2',
+    ];
+
     public function planets(): HasMany {
         return $this->hasMany(Planet::class);
     }
@@ -233,26 +283,56 @@ class User extends Model {
         return $this->belongsTo(Alliance::class);
     }
 }
+
+// app/Models/Planet.php (mit PostgreSQL JSONB)
+class Planet extends Model {
+    protected $casts = [
+        'planet_fields' => 'array',      // JSONB
+        'planet_debris' => 'array',      // JSONB
+        'planet_production' => 'array',  // JSONB
+    ];
+
+    // Full-Text Search Scope
+    public function scopeSearch($query, $term) {
+        return $query->whereRaw(
+            "planet_search_vector @@ plainto_tsquery('english', ?)",
+            [$term]
+        );
+    }
+}
 ```
 
 **Models:**
 - User, Planet, Building, Ship, Defense
-- Fleet, Research, Report, Alliance
+- Fleet, Research, Report (mit JSONB), Alliance
 - Message, Note, Buddy
 - + Relations zwischen allen Models
+- + PostgreSQL-spezifische Scopes
+
+**Siehe:** `docs/PHASE_1_PLAN.md` Abschnitt 1.3
 
 ### Phase 1.4: API Routing & Controllers
 RESTful API für alle Features:
 
 ```php
 // routes/api.php
-Route::prefix('v1')->group(function () {
+Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::apiResource('planets', PlanetController::class);
     Route::apiResource('fleets', FleetController::class);
     Route::apiResource('research', ResearchController::class);
+    Route::get('/galaxy/{galaxy}/{system}', GalaxyController::class);
     // ...
 });
 ```
+
+**API Features:**
+- Laravel Sanctum (Token-basierte Auth)
+- API Resources (JSON Transformers)
+- Service Layer (Business Logic)
+- Request Validation
+- Rate Limiting
+
+**Siehe:** `docs/PHASE_1_PLAN.md` Abschnitt 1.4
 
 ## Verzeichnisstruktur (Neu)
 
