@@ -19,6 +19,8 @@ RUN apk add --no-cache \
     unzip \
     git \
     mysql-client \
+    postgresql-dev \
+    postgresql-client \
     supervisor \
     nginx
 
@@ -30,7 +32,9 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
         opcache \
         zip \
         pdo \
-        pdo_mysql
+        pdo_mysql \
+        pdo_pgsql \
+        pgsql
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

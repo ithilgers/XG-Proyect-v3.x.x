@@ -51,7 +51,9 @@ phpunit.xml
 # docs
 #
 .phpdoc/*
-/docs/*
+/docs/*.html
+/docs/api/*
+!/docs/*.md
 
 #
 # docker
