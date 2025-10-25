@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\PlanetController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,50 +22,83 @@ Route::prefix('v1')->group(function () {
 
     // Health check
     Route::get('/health', function () {
+        try {
+            $dbStatus = DB::connection()->getPdo() ? 'connected' : 'disconnected';
+        } catch (\Exception $e) {
+            $dbStatus = 'disconnected';
+        }
+
+        try {
+            Cache::store('redis')->put('health_check', true, 1);
+            $redisStatus = Cache::store('redis')->get('health_check') ? 'connected' : 'disconnected';
+        } catch (\Exception $e) {
+            $redisStatus = 'disconnected';
+        }
+
         return response()->json([
             'status' => 'ok',
-            'database' => DB::connection()->getPdo() ? 'connected' : 'disconnected',
-            'redis' => Cache::store('redis')->get('test') !== false ? 'connected' : 'disconnected',
+            'database' => $dbStatus,
+            'redis' => $redisStatus,
             'timestamp' => now()->toIso8601String(),
         ]);
     });
 
     // Public routes
     Route::prefix('auth')->group(function () {
-        Route::post('/register', function () {
-            return response()->json(['message' => 'Registration endpoint - coming soon']);
-        });
-
-        Route::post('/login', function () {
-            return response()->json(['message' => 'Login endpoint - coming soon']);
-        });
+        Route::post('/register', [AuthController::class, 'register']);
+        Route::post('/login', [AuthController::class, 'login']);
     });
 
     // Protected routes (require authentication)
     Route::middleware('auth:sanctum')->group(function () {
 
+        // Auth routes
+        Route::prefix('auth')->group(function () {
+            Route::post('/logout', [AuthController::class, 'logout']);
+            Route::get('/me', [AuthController::class, 'me']);
+        });
+
+        // User routes
         Route::get('/user', function (Request $request) {
-            return $request->user();
+            return response()->json([
+                'success' => true,
+                'data' => new \App\Http\Resources\UserResource($request->user()->load(['planets', 'alliance'])),
+            ]);
         });
 
-        // Planets API (coming soon)
-        Route::prefix('planets')->group(function () {
-            Route::get('/', function () {
-                return response()->json(['message' => 'Planets list - coming soon']);
-            });
-        });
+        // Planets API
+        Route::apiResource('planets', PlanetController::class)->only(['index', 'show', 'update']);
 
-        // Fleets API (coming soon)
+        // Fleets API (placeholder)
         Route::prefix('fleets')->group(function () {
             Route::get('/', function () {
-                return response()->json(['message' => 'Fleets list - coming soon']);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Fleets list - implementation coming soon',
+                    'data' => [],
+                ]);
             });
         });
 
-        // Research API (coming soon)
+        // Research API (placeholder)
         Route::prefix('research')->group(function () {
             Route::get('/', function () {
-                return response()->json(['message' => 'Research list - coming soon']);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Research list - implementation coming soon',
+                    'data' => [],
+                ]);
+            });
+        });
+
+        // Alliances API (placeholder)
+        Route::prefix('alliances')->group(function () {
+            Route::get('/', function () {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Alliances list - implementation coming soon',
+                    'data' => [],
+                ]);
             });
         });
 
