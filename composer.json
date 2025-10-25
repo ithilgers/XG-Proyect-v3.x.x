@@ -20,13 +20,16 @@
     ],
     "license": "GPL-3.0-only",
     "require": {
-        "php": "^7.4|^8.0",
-        "phpmailer/phpmailer": "^6.5",
-        "eftec/bladeone": "^4.2"
+        "php": "^8.3",
+        "phpmailer/phpmailer": "^6.9",
+        "eftec/bladeone": "^4.13"
     },
     "require-dev": {
-        "phpunit/phpunit": "^9.0",
-        "bartlett/php-compatinfo": "6.1"
+        "phpunit/phpunit": "^11.0",
+        "bartlett/php-compatinfo": "^7.1",
+        "phpstan/phpstan": "^1.11",
+        "larastan/larastan": "^2.9",
+        "laravel/pint": "^1.15"
     },
     "config": {
         "allow-plugins": {
@@ -46,6 +49,20 @@
         ],
         "phpunit": [
             "vendor/bin/phpunit --config tests/phpunit.xml --testsuite xgp_application"
+        ],
+        "phpstan": [
+            "vendor/bin/phpstan analyse --memory-limit=2G"
+        ],
+        "pint": [
+            "vendor/bin/pint"
+        ],
+        "pint:test": [
+            "vendor/bin/pint --test"
+        ],
+        "test": [
+            "@phpunit",
+            "@phpstan",
+            "@pint:test"
         ]
     }
 }
